@@ -1,39 +1,28 @@
-const app = require('express')();
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
+var fs = require('fs');
+var https = require('https');
 
-const documents = {};
+var express = require('express');
+var app = express();
 
-io.on('connection', socket => {
-    let previousId;
-    const safeJoin = currentId => {
-        socket.leave(previousId);
-        socket.join(currentId, () => console.log(`Socket ${socket.id} joined room ${currentId}`));
-        previousId = currentId;
-    }
+var options = {
+    key: fs.readFileSync('C:/Users/jabo/Desktop/key.pem'),
+    cert: fs.readFileSync('C:/Users/jabo/Desktop/server.crt')
+};
 
-    socket.on('getDoc', docId => {
-        safeJoin(docId);
-        socket.emit('document', documents[docId]);
-    });
+var serverPort = 4444;
 
-    socket.on('addDoc', doc => {
-        documents[doc.id] = doc;
-        safeJoin(doc.id);
-        io.emit('documents', Object.keys(documents));
-        socket.emit('document', doc);
-    });
+var server = https.createServer(options, app);
+var io = require('socket.io')(server);
 
-    socket.on('editDoc', doc => {
-        documents[doc.id] = doc;
-        socket.to(doc.id).emit('document', doc);
-    });
-
-    io.emit('documents', Object.keys(documents));
-
-    console.log(`Socket ${socket.id} has connected`);
+app.get('/', function (req, res) {
+    res.sendFile(__dirname + '/public/index.html');
 });
 
-http.listen(4444, () => {
-    console.log('Listening on port 4444');
+io.on('connection', function (socket) {
+    console.log('new connection');
+    socket.emit('message', 'This is a message from the dark side.');
+});
+
+server.listen(serverPort, function () {
+    console.log('server up and running at %s port', serverPort);
 });
